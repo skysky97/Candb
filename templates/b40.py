@@ -21,11 +21,12 @@ sig_factor_col = 15
 sig_offset_col = 16
 sig_min_phys_col = 17
 sig_max_phys_col = 18
+sig_init_val_col = 21
 sig_unit_col = 24
 sig_val_col = 25
 
-node_name = "IPC" # name of ECU defined in excel
-node_col = 31 # ECU name column number
+node_name = "SVM" # name of ECU defined in excel
+node_col = 29 # ECU name column number
 
 # others
 start_row = 1 # start row number of valid data

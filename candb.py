@@ -45,14 +45,24 @@ attr_defs_init = [
     ["Node", "NodeLayerModules", "String", "", "", "CANoeILNVector.dll", []],
     ["Signal", "GenSigInactiveValue", "Integer", 0, 0, 0, []],
     ["Signal", "GenSigSendType", "Enumeration", "", "", "cycle",
-     ["cycle", "OnChange", "OnWrite", "IfActive", "OnChangeWithRepetition", "OnWriteWithRepetition",
-      "IfActiveWithRepetition"]],
+    ["cycle", "OnChange", "OnWrite", "IfActive", "OnChangeWithRepetition", "OnWriteWithRepetition",  "IfActiveWithRepetition"]],
     ["Signal", "GenSigStartValue", "Integer", 0, 0, 0, []],
     ["Signal", "GenSigTimeoutValue", "Integer", 0, 1000000000, 0, []],
 ]
 
+def open_dbc(path):
+    network = CanNetwork()
+    network.load(path)
+    return network
 
-class CanDatabase(object):
+
+def import_excel(path, sheet, template):
+    network = CanNetwork()
+    network.import_excel(path, sheet, template)
+    return network
+
+
+class CanNetwork(object):
     def __init__(self):
         self.nodes = []
         self.messages = []
@@ -171,6 +181,30 @@ class CanDatabase(object):
                         else:
                             line.append(str(msg.attrs[attr_def.name]) + ";")
                         lines.append(" ".join(line) + '\n')
+        # ! signal attribution values
+        for msg in self.messages:
+            for sig in msg.signals:
+                if sig.init_val is not None and sig.init_val is not 0:
+                    line = ["BA_"]
+                    line.append('''"GenSigStartValue"''')
+                    line.append("SG_")
+                    line.append(str(msg.msg_id))
+                    line.append(sig.name)
+                    line.append(str(sig.init_val))
+                    line.append(';')
+                    lines.append(' '.join(line) + '\n')
+        # ! Value table define
+        for msg in self.messages:
+            for sig in msg.signals:
+                if sig.values is not None:
+                    line = ['VAL_']
+                    line.append(str(msg.msg_id))
+                    line.append(sig.name)
+                    for key in sig.values:
+                        line.append(str(sig.values[key]))
+                        line.append('"'+ key +'"')
+                    line.append(';')
+                    lines.append(' '.join(line) + '\n')
         return ''.join(lines)
 
     def sort(self):
@@ -182,7 +216,33 @@ class CanDatabase(object):
             signals.sort(key=lambda sig: sig.start_bit)
 
     def load(self, path):
-        pass  # todo
+        dbc = open(path, 'r')
+
+        for line in dbc:
+            line_trimmed = line.strip()
+            line_split = re.split('[\s\(\)\[\]\|\,\:\@]+', line_trimmed)
+            if len(line_split) > 0:
+                if line_split[0] == 'BO_':
+                    msg = CanMessage()
+                    msg.msg_id = int(line_split[1])
+                    msg.name   = line_split[2]
+                    msg.dlc    = int(line_split[3])
+                    msg.sender = line_split[4]
+                    self.messages.append(msg)
+                elif line_split[0] == 'SG_':
+                    sig = CanSignal()
+                    sig.name        = line_split[1]
+                    sig.start_bit   = int(line_split[2])
+                    sig.sig_len     = int(line_split[3])
+                    sig.byte_order  = line_split[4][:1]
+                    sig.value_type  = line_split[4][1:]
+                    sig.factor      = line_split[5]
+                    sig.offset      = line_split[6]
+                    sig.min         = line_split[7]
+                    sig.max         = line_split[8]
+                    sig.unit        = line_split[9][1:-1]  # remove quotation makes
+                    sig.receivers   = line_split[10:]  # receiver is a list
+                    msg.signals.append(sig)
 
     def save(self, path=None):
         if (path == None):
@@ -203,7 +263,7 @@ class CanDatabase(object):
 
         # ! load network information
         filename = path.split(".")
-        self.name = ".".join(filename[:-1]).replace(" ", "_").replace('.', '_')  # use filename as default DBName
+        self.name = ".".join(filename[:-1]).replace(" ", "_").replace('.', '_').replace('-', '_')  # use filename as default DBName
 
         # ! load nodes information
         self.nodes.append(template.node_name)  # todo: only record current node yet
@@ -255,6 +315,8 @@ class CanDatabase(object):
                     signal.min = row_values[template.sig_min_phys_col]
                     signal.max = row_values[template.sig_max_phys_col]
                     signal.unit = row_values[template.sig_unit_col]
+                    signal.init_val = _int((row_values[template.sig_init_val_col]))
+                    signal.values = _parse_sig_val(row_values[template.sig_val_col])
                     signal.comment = row_values[template.sig_comment_col].replace("\"", "\'")  # todo
                     receiver = row_values[template.node_col].strip().upper()
                     if (receiver == "R"):
@@ -267,6 +329,39 @@ class CanDatabase(object):
                     signals.append(signal)
         self.sort();
 
+
+def _int(val_str):
+    if val_str is not None:
+        try:
+            val = int(val_str, 16)
+            return val
+        except (ValueError, TypeError):
+            try:
+                val = int(val_str)
+                return val
+            except ValueError:
+                return None
+    return None
+
+
+def _parse_sig_val(val_str):
+    vals={}
+    if val_str is not None:
+        token = re.split('[\;\:\\n\-]+', val_str.strip())
+        if len(token) >= 2:
+            if len(token) % 2 == 0:
+                for i in range(0, len(token), 2):
+                    val = _int(token[i])
+                    if val is None:
+                        print "waring: ignored signal value: " + val_str
+                    vals[token[i + 1]] = val
+                return vals
+            else:
+                print "waring: ignored signal value: " + val_str
+        else:
+            return None
+    else:
+        return None
 
 class CanMessage(object):
     def __init__(self, name='', msg_id=0, dlc=8, sender='Vector__XXX'):
@@ -309,7 +404,7 @@ class CanSignal(object):
         self.min = 0
         self.max = 1
         self.unit = ''
-        self.values = []
+        self.values = {}
         self.receivers = []
         self.comment = ''
 
@@ -344,7 +439,7 @@ if __name__ == '__main__':
 
     # opts, args = getopt.getopt(sys.argv[1:], 'h', ['help'])
     try:
-        database = CanDatabase()
+        database = CanNetwork()
         # database.import_excel("BAIC_IPC_Matrix_CAN_20161008.xls", "IPC", "b100k_gasoline")
         database.import_excel(sys.argv[1], sys.argv[2], sys.argv[3])
         database.save()
