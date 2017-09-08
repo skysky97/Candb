@@ -1,12 +1,22 @@
+
+"""\
+This module provides CAN database(*dbc) and matrix(*xls) operation functions.
+
+
+"""
 import re
 import xlrd
-import string
-
 import sys
+import traceback
+import os
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+# enable or disable debug info display, this switch is controlled by -d option.
+debug_enable = False
+
+# symbol definition of DBC format file
 new_symbols = [
     'NS_DESC_', 'CM_', 'BA_DEF_', 'BA_', 'VAL_', 'CAT_DEF_', 'CAT_',
     'FILTER', 'BA_DEF_DEF_', 'EV_DATA_', 'ENVVAR_DATA_', 'SGTYPE_',
@@ -15,6 +25,7 @@ new_symbols = [
     'BO_TX_BU_', 'BA_DEF_REL_', 'BA_REL_', 'BA_DEF_DEF_REL_',
     'BU_SG_REL_', 'BU_EV_REL_', 'BU_BO_REL_', 'SG_MUL_VAL_'
 ]
+
 
 # pre-defined attribution definitions
 #  object type    name                      value type          min     max     default   value range
@@ -50,16 +61,232 @@ attr_defs_init = [
     ["Signal", "GenSigTimeoutValue", "Integer", 0, 1000000000, 0, []],
 ]
 
-def open_dbc(path):
-    network = CanNetwork()
-    network.load(path)
-    return network
+# matrix template dict
+# Matrix parser use this dict to parse can network information from excel. The
+# 'key's are used in this module and the 'ValueTable' are used to match excel
+# column header. 'ValueTable' may include multi string.
+matrix_template_map = {
+    "msg_name_col":         ["MsgName"],
+    "msg_type_col":         ["MsgType"],
+    "msg_id_col":           ["MsgID"],
+    "msg_send_type_col":    ["MsgSendType"],
+    "msg_cycle_col":        ["MsgCycleTime"],
+    "msg_len_col":          ["MsgLength"],
+    "sig_name_col":         ["SignalName"],
+    "sig_comment_col":      ["SignalDescription"],
+    "sig_byte_order_col":   ["ByteOrder"],
+    "sig_start_bit_col":    ["StartBit"],
+    "sig_len_col":          ["BitLength"],
+    "sig_value_type_col":   ["DateType"],
+    "sig_factor_col":       ["Resolution"],
+    "sig_offset_col":       ["Offset"],
+    "sig_min_phys_col":     ["SignalMin.Value(phys)"],
+    "sig_max_phys_col":     ["SignalMax.Value(phys)"],
+    "sig_init_val_col":     ["InitialValue(Hex)"],
+    "sig_unit_col":         ["Unit"],
+    "sig_val_col":          ["SignalValueDescription"],
+}
+
+# excel workbook sheets with name in this list are ignored
+matrix_sheet_ignore = ["Cover", "History", "Legend", "ECU Version", ]
+
+matrix_nodes = ["IPC","ICM"]
+
+NODE_NAME_MAX = 8
 
 
-def import_excel(path, sheet, template):
-    network = CanNetwork()
-    network.import_excel(path, sheet, template)
-    return network
+class MatrixTemplate(object):
+    def __init__(self):
+        self.msg_name_col = 0
+        self.msg_type_col = 0
+        self.msg_id_col = 0
+        self.msg_send_type_col = 0
+        self.msg_cycle_col = 0
+        self.msg_len_col = 0
+        self.sig_name_col = 0
+        self.sig_comment_col = 0
+        self.sig_byte_order_col = 0
+        self.sig_start_bit_col = 0
+        self.sig_len_col = 0
+        self.sig_value_type_col = 0
+        self.sig_factor_col = 0
+        self.sig_offset_col = 0
+        self.sig_min_phys_col = 0
+        self.sig_max_phys_col = 0
+        self.sig_init_val_col = 0
+        self.sig_unit_col = 0
+        self.sig_val_col = 0
+        self.nodes = {}
+
+        self.start_row = 0  # start row number of valid data
+
+    def members(self):
+        return sorted(vars(self).items(), key=lambda item:item[1])
+
+    def __str__(self):
+        s = []
+        for key, var in self.members():
+            if type(var) == int:
+                s.append("  %s : %d (%s)" % (key, var, get_xls_col(var)))
+        return '\n'.join(s)
+
+
+def get_xls_col(val):
+    """
+    get_xls_col(col) --> string
+    
+    Convert int column number to excel column symbol like A, B, AB .etc
+    """
+    if type(val) == type(0):
+        if val <= 25:
+            s = chr(val+0x41)
+        elif val <100:
+            s = chr(val/26-1+0x41)+chr(val%26+0x41)
+        else:
+            raise ValueError("column number too large: ", str(val))
+        return s
+    else:
+        raise TypeError("column number only support int: ", str(val))
+
+
+def get_list_item(list_object):
+    """
+    get_list_item(list_object) --> object(string)
+
+    Show object list to terminal and get selection object from ternimal.
+    """
+    list_index = 0
+    for item in list_object:
+        print "   %2d %s" %(list_index, item)
+        list_index += 1
+    while True:
+        user_input = raw_input()
+        if user_input.isdigit():
+            select_index = int(user_input)
+            if select_index < len(list_object):
+                return list_object[select_index]
+            else:
+                print "input over range"
+        else:
+            print "input invalid"
+
+
+def parse_sheetname(workbook):
+    """
+    Get sheet name of can matrix in the xls workbook. 
+    Only informations in this sheet are used.
+
+    """
+    sheets = []
+    for sheetname in workbook.sheet_names():
+        if sheetname == "Matrix":
+            return sheetname
+        if sheetname not in matrix_sheet_ignore:
+            sheets.append(sheetname)
+    if len(sheets)==1:
+        return sheets[0]
+    elif len(sheets)>=2:
+        print "Select one sheet blow:"
+        # print "  ","  ".join(sheets)
+        # return raw_input()
+        return get_list_item(sheets)
+    else:
+        print "Select one sheet blow:"
+        # print "  ","  ".join(workbook.sheet_names())
+        # return raw_input()
+        return get_list_item(workbook.sheet_names())
+
+
+def parse_template(sheet):
+    """
+    parse_template(sheet) -> MatrixTemplate
+    
+    Parse column headers of xls sheet and the result of column numbers is 
+    returned as MatrixTemplate object
+    """
+    # find table header row
+    header_row_num = 0xFFFF
+    for row_num in range(0, sheet.nrows):
+        if sheet.row_values(row_num)[0].find("Msg Name") != -1:
+            #print "table header row number: %d" % row_num
+            header_row_num = row_num
+    if header_row_num == 0xFFFF:
+        raise ValueError("Can't find \"Msg Name\" in this sheet")
+    # get header info
+    template = MatrixTemplate()
+    for col_num in range(0, sheet.ncols):
+        value = sheet.row_values(header_row_num)[col_num]
+        if value is not None:
+            value = value.replace(" ","")
+            for col_name in matrix_template_map.keys():
+                for col_header in matrix_template_map[col_name]:
+                    if col_header in value and getattr(template,col_name)==0:
+                        setattr(template, col_name, col_num)
+                        break
+    template.start_row = header_row_num + 1
+    # get ECU nodes
+    node_start_col = template.sig_val_col
+    for col in range(node_start_col, sheet.ncols):
+        value = sheet.row_values(header_row_num)[col]
+        if value is not None:
+            value = value.replace(" ","")
+            if len(value) <= NODE_NAME_MAX:
+                template.nodes[value] = col
+    # print "detected nodes: ", template.nodes
+    return template
+
+
+def parse_sig_vals(val_str):
+    """
+    parse_sig_vals(val_str) -> {valuetable}
+
+    Get signal key:value pairs from string. Returns None if failed.
+    """
+    vals = {}
+    if val_str is not None and val_str != '':
+        token = re.split('[\;\:\\n]+', val_str.strip())
+        if len(token) >= 2:
+            if len(token) % 2 == 0:
+                for i in range(0, len(token), 2):
+                    try:
+                        val = getint(token[i])
+                        desc = token[i + 1]  # .replace('.', ' ').replace('\"',' ')
+                        vals[desc] = val
+                    except ValueError:
+                        # print "waring: ignored signal value definition: " ,token[i], token[i+1]
+                        raise
+                return vals
+            else:
+                # print "waring: ignored signal value description: ", val_str
+                raise ValueError()
+        else:
+            raise ValueError(val_str)
+    else:
+        return None
+
+
+def getint(str, default=None):
+    """
+    getint(str) -> int
+    
+    Convert string to int number. If default is given, default value is returned 
+    while str is None.
+    """
+    if str == '':
+        if default==None:
+            raise ValueError("None type object is unexpected")
+        else:
+            return default
+    else:
+        try:
+            val = int(str)
+            return val
+        except (ValueError, TypeError):
+            try:
+                val = int(str, 16)
+                return val
+            except:
+                raise
 
 
 class CanNetwork(object):
@@ -72,6 +299,7 @@ class CanNetwork(object):
         self.new_symbols = new_symbols
         self.attr_defs = []
         self._init_attr_defs()
+        self._filename = ''
 
     def _init_attr_defs(self):
         for attr_def in attr_defs_init:
@@ -196,7 +424,7 @@ class CanNetwork(object):
         # ! Value table define
         for msg in self.messages:
             for sig in msg.signals:
-                if sig.values is not None:
+                if sig.values is not None and len(sig.values) >= 1:
                     line = ['VAL_']
                     line.append(str(msg.msg_id))
                     line.append(sig.name)
@@ -246,30 +474,45 @@ class CanNetwork(object):
 
     def save(self, path=None):
         if (path == None):
-            file = open(self.name + ".dbc", "w")
+            file = open(self._filename + ".dbc", "w")
         else:
             file = open(path, 'w')
         # file.write(unicode.encode(str(self), "utf-8"))
         file.write(str(self))
 
-    def import_excel(self, path, sheet, template):
+    def import_excel(self, path, sheetname=None, template=None):
         # Open file
         book = xlrd.open_workbook(path)
-        sheet = book.sheet_by_name(sheet)
-        nrows = sheet.nrows
-        # import template
-        import_string = "import templates." + template + " as template"
-        exec import_string
+        # open sheet
+        if sheetname is not None:
+            print "use specified sheet: ", sheetname
+            sheet = book.sheet_by_name(sheetname)
+        else:
+            sheetname = parse_sheetname(book)
+            print "select sheet: ", sheetname
+            sheet = book.sheet_by_name(sheetname)
 
+        # import template
+        if template is not None:
+            print 'use specified template: ', template
+            import_string = "import templates." + template + " as template"
+            exec import_string
+        else:
+            print "parse template"
+            template = parse_template(sheet)
+            if debug_enable:
+                print template
         # ! load network information
-        filename = path.split(".")
+        filename = os.path.basename(path).split(".")
+        self._filename = ".".join(filename[:-1])
         self.name = ".".join(filename[:-1]).replace(" ", "_").replace('.', '_').replace('-', '_')  # use filename as default DBName
 
         # ! load nodes information
-        self.nodes.append(template.node_name)  # todo: only record current node yet
+        self.nodes = template.nodes.keys()
 
         # ! load messages
-        messages = self.messages;
+        messages = self.messages
+        nrows = sheet.nrows
         for row in range(template.start_row, nrows):
             row_values = sheet.row_values(row)
             msg_name = row_values[template.msg_name_col]
@@ -279,19 +522,29 @@ class CanNetwork(object):
                 signals = message.signals
                 message.name = msg_name.replace(' ', '')
                 # message.type = row_values[template.msg_type_col] # todo: should set candb attribution instead
-                message.msg_id = int(row_values[template.msg_id_col][2:], 16)
+                message.msg_id = getint(row_values[template.msg_id_col])
+                message.dlc = getint(row_values[template.msg_len_col])
                 send_type = row_values[template.msg_send_type_col].upper().strip()
                 if (send_type == "CYCLE") or (send_type == "CE"):  # todo: CE is treated as cycle
-                    message.set_attr("GenMsgCycleTime", int(row_values[template.msg_cycle_col]))
+                    try:
+                        msg_cycle = getint(row_values[template.msg_cycle_col])
+                    except ValueError:
+                        print "warning: message %s\'s cycle time \"%s\" is invalid, auto set to \'0\'" % (message.name, row_values[template.msg_cycle_col])
+                        msg_cycle = 0
+                    message.set_attr("GenMsgCycleTime", msg_cycle)
                     message.set_attr("GenMsgSendType", "cycle")
                 else:
                     message.set_attr("GenMsgSendType", "NoSendType")
-                message.dlc = int(row_values[template.msg_len_col])
+
                 # message sender
-                sender = row_values[template.node_col].strip().upper()
-                if (sender == "S"):
-                    message.sender = template.node_name
-                else:
+                message.sender = None
+                for nodename in template.nodes:
+                    nodecol = template.nodes[nodename]
+                    sender = row_values[nodecol].strip().upper()
+                    if sender == "S":
+                        message.sender = nodename
+                        break
+                if message.sender is None:
                     message.sender = 'Vector__XXX'
                 messages.append(message)
             else:
@@ -300,8 +553,8 @@ class CanNetwork(object):
                     # This row defines a signal!
                     signal = CanSignal()
                     signal.name = sig_name.replace(' ', '')
-                    signal.start_bit = int(row_values[template.sig_start_bit_col])
-                    signal.sig_len = int(row_values[template.sig_len_col])
+                    signal.start_bit = getint(row_values[template.sig_start_bit_col])
+                    signal.sig_len = getint(row_values[template.sig_len_col])
                     if (row_values[template.sig_byte_order_col].upper() == "MOTOROLA_LSB"):  # todo
                         signal.byte_order = '1'
                     else:
@@ -315,53 +568,35 @@ class CanNetwork(object):
                     signal.min = row_values[template.sig_min_phys_col]
                     signal.max = row_values[template.sig_max_phys_col]
                     signal.unit = row_values[template.sig_unit_col]
-                    signal.init_val = _int((row_values[template.sig_init_val_col]))
-                    signal.values = _parse_sig_val(row_values[template.sig_val_col])
-                    signal.comment = row_values[template.sig_comment_col].replace("\"", "\'")  # todo
-                    receiver = row_values[template.node_col].strip().upper()
-                    if (receiver == "R"):
-                        signal.receivers.append(template.node_name)
-                    elif (receiver == "S"):
-                        signal.receivers.append('Vector__XXX')
-                        message.sender = template.node_name  # todo: maybe a warning?
-                    else:
+                    signal.init_val = getint((row_values[template.sig_init_val_col]), 0)
+                    try:
+                        signal.values = parse_sig_vals(row_values[template.sig_val_col])
+                    except ValueError:
+                        if debug_enable:
+                            print "warning: signal %s\'s value table is ignored" % signal.name
+                        else:
+                            pass
+                    signal.comment = row_values[template.sig_comment_col].replace("\"", "\'").replace("\r", '\n') # todo
+                    # get signal receivers
+                    signal.receivers = []
+                    for nodename in template.nodes:
+                        nodecol = template.nodes[nodename]
+                        receiver = row_values[nodecol].strip().upper()
+                        if receiver == "R":
+                            signal.receivers.append(nodename)
+                        elif receiver == "S":
+                            if message.sender == 'Vector__XXX':
+                                message.sender = nodename
+                                print "warning: message %s\'s sender is set to \"%s\" via signal" %(message.name, nodename)
+                            else:
+                                print "warning: message %s\'s sender is conflict to signal \"%s\"" %(message.name, nodename)
+                        else:
+                            pass
+                    if len(signal.receivers) == 0:
                         signal.receivers.append('Vector__XXX')
                     signals.append(signal)
         self.sort();
 
-
-def _int(val_str):
-    if val_str is not None:
-        try:
-            val = int(val_str, 16)
-            return val
-        except (ValueError, TypeError):
-            try:
-                val = int(val_str)
-                return val
-            except ValueError:
-                return None
-    return None
-
-
-def _parse_sig_val(val_str):
-    vals={}
-    if val_str is not None:
-        token = re.split('[\;\:\\n\-]+', val_str.strip())
-        if len(token) >= 2:
-            if len(token) % 2 == 0:
-                for i in range(0, len(token), 2):
-                    val = _int(token[i])
-                    if val is None:
-                        print "waring: ignored signal value: " + val_str
-                    vals[token[i + 1]] = val
-                return vals
-            else:
-                print "waring: ignored signal value: " + val_str
-        else:
-            return None
-    else:
-        return None
 
 class CanMessage(object):
     def __init__(self, name='', msg_id=0, dlc=8, sender='Vector__XXX'):
@@ -430,20 +665,33 @@ class CanAttribution(object):
         pass
 
 
+def _parse_args():
+    """
+    Parse command line commands.
+    """
+    import argparse
+    parse = argparse.ArgumentParser()
+    parse.add_argument("command", help="Command of candb", choices=["gen"],default=None)
+    parse.add_argument("filename", help="The xls file to generate dbc")
+    parse.add_argument("-s","--sheetname",help="set sheet name of xls",default=None)
+    parse.add_argument("-t","--template",help="choose a template",default=None)
+    parse.add_argument("-d","--debug",help="show debug info",action="store_true", dest="debug_switch", default=False)
+    args = parse.parse_args()
+
+    global  debug_enable
+    debug_enable = args.debug_switch
+
+    if args.command=="gen":
+        try:
+            can = CanNetwork()
+            can.import_excel(args.filename, args.sheetname, args.template)
+            can.save()
+            print "success"
+        except IOError,e:
+            print e
+        except xlrd.biffh.XLRDError,e:
+            print e
+
+
 if __name__ == '__main__':
-    print "\n====Candb tool====:"
-    print '''For generate dbc file from excel, use command:\n    candb [path] [sheet] [template]'''
-    print 'Supported template:\n    b100k_gasoline | b100k_hybird | c51e\n'
-
-    import sys, getopt
-
-    # opts, args = getopt.getopt(sys.argv[1:], 'h', ['help'])
-    try:
-        database = CanNetwork()
-        # database.import_excel("BAIC_IPC_Matrix_CAN_20161008.xls", "IPC", "b100k_gasoline")
-        database.import_excel(sys.argv[1], sys.argv[2], sys.argv[3])
-        database.save()
-        print "Success\n"
-    except IndexError:
-        print "Error: Invalid parameter\n"
-
+    _parse_args()
