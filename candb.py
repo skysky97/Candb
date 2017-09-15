@@ -665,33 +665,61 @@ class CanAttribution(object):
         pass
 
 
-def _parse_args():
+def parse_args():
     """
     Parse command line commands.
     """
     import argparse
     parse = argparse.ArgumentParser()
-    parse.add_argument("command", help="Command of candb", choices=["gen"],default=None)
-    parse.add_argument("filename", help="The xls file to generate dbc")
-    parse.add_argument("-s","--sheetname",help="set sheet name of xls",default=None)
-    parse.add_argument("-t","--template",help="choose a template",default=None)
     parse.add_argument("-d","--debug",help="show debug info",action="store_true", dest="debug_switch", default=False)
+    subparser = parse.add_subparsers(title="subcommands")
+    
+    parse_gen = subparser.add_parser("gen", help="Generate dbc from excle file")
+    parse_gen.add_argument("filename", help="The xls file to generate dbc")
+    parse_gen.add_argument("-s","--sheetname",help="set sheet name of xls",default=None)
+    parse_gen.add_argument("-t","--template",help="Choose a template",default=None)
+    parse_gen.set_defaults(func=cmd_gen)
+    
+    parse_sort = subparser.add_parser("sort", help="Sort dbc message and signals")
+    parse_sort.add_argument("filename", help="Dbc filename")
+    parse_sort.add_argument("-o","--output", help="Specify output file path", default=None)
+    parse_sort.set_defaults(func=cmd_sort)
+    
+    parse_cmp = subparser.add_parser("cmp", help="Compare difference bettween two dbc files")
+    parse_cmp.add_argument("filename1", help="The base file to be compared with")
+    parse_cmp.add_argument("filename2", help="The new file to be compared")
+    parse_cmp.set_defaults(func=cmd_cmp)
+    
     args = parse.parse_args()
+    args.func(args)
 
-    global  debug_enable
-    debug_enable = args.debug_switch
 
-    if args.command=="gen":
-        try:
-            can = CanNetwork()
-            can.import_excel(args.filename, args.sheetname, args.template)
-            can.save()
-            print "success"
-        except IOError,e:
-            print e
-        except xlrd.biffh.XLRDError,e:
-            print e
+def cmd_gen(args):
+    try:
+        can = CanNetwork()
+        can.import_excel(args.filename, args.sheetname, args.template)
+        can.save()
+    except IOError,e:
+        print e
+    except xlrd.biffh.XLRDError,e:
+        print e
+        
+        
+def cmd_sort(args):
+    can = CanNetwork()
+    can.load(args.filename)
+    can.sort()
+    if args.output is None:
+        can.save("sorted.dbc")
+    else:
+        can.save(savepath)
+
+
+def cmd_cmp(args):
+    print "Compare function is comming soon!"
 
 
 if __name__ == '__main__':
-    _parse_args()
+    parse_args()
+
+
