@@ -671,13 +671,13 @@ def parse_args():
     """
     import argparse
     parse = argparse.ArgumentParser()
-    parse.add_argument("-d","--debug",help="show debug info",action="store_true", dest="debug_switch", default=False)
     subparser = parse.add_subparsers(title="subcommands")
     
     parse_gen = subparser.add_parser("gen", help="Generate dbc from excle file")
     parse_gen.add_argument("filename", help="The xls file to generate dbc")
     parse_gen.add_argument("-s","--sheetname",help="set sheet name of xls",default=None)
     parse_gen.add_argument("-t","--template",help="Choose a template",default=None)
+    parse_gen.add_argument("-d","--debug",help="show debug info",action="store_true", dest="debug_switch", default=False)
     parse_gen.set_defaults(func=cmd_gen)
     
     parse_sort = subparser.add_parser("sort", help="Sort dbc message and signals")
@@ -695,6 +695,8 @@ def parse_args():
 
 
 def cmd_gen(args):
+    global  debug_enable
+    debug_enable = args.debug_switch
     try:
         can = CanNetwork()
         can.import_excel(args.filename, args.sheetname, args.template)
@@ -712,7 +714,7 @@ def cmd_sort(args):
     if args.output is None:
         can.save("sorted.dbc")
     else:
-        can.save(savepath)
+        can.save(args.output)
 
 
 def cmd_cmp(args):
