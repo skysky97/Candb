@@ -228,7 +228,7 @@ def parse_template(sheet):
     node_start_col = template.sig_val_col
     for col in range(node_start_col, sheet.ncols):
         value = sheet.row_values(header_row_num)[col]
-        if value is not None:
+        if value is not None and value != '':
             value = value.replace(" ","")
             if len(value) <= NODE_NAME_MAX:
                 template.nodes[value] = col
@@ -505,8 +505,9 @@ class CanNetwork(object):
         # ! load network information
         filename = os.path.basename(path).split(".")
         self._filename = ".".join(filename[:-1])
-        self.name = ".".join(filename[:-1]).replace(" ", "_").replace('.', '_').replace('-', '_')  # use filename as default DBName
-
+        #self.name = ".".join(filename[:-1]).replace(" ", "_").replace('.', '_').replace('-', '_')  # use filename as default DBName
+        self.name = "CAN"
+        
         # ! load nodes information
         self.nodes = template.nodes.keys()
 
@@ -543,7 +544,8 @@ class CanNetwork(object):
                     sender = row_values[nodecol].strip().upper()
                     if sender == "S":
                         message.sender = nodename
-                        break
+                    elif sender == "R":
+                        message.receivers.append(nodename)
                 if message.sender is None:
                     message.sender = 'Vector__XXX'
                 messages.append(message)
@@ -555,14 +557,21 @@ class CanNetwork(object):
                     signal.name = sig_name.replace(' ', '')
                     signal.start_bit = getint(row_values[template.sig_start_bit_col])
                     signal.sig_len = getint(row_values[template.sig_len_col])
-                    if (row_values[template.sig_byte_order_col].upper() == "MOTOROLA_LSB"):  # todo
+                    
+                    byte_order_type = row_values[template.sig_byte_order_col]
+                    if (byte_order_type.upper() == "MOTOROLA LSB"):  # todo
                         signal.byte_order = '1'
+                    elif (byte_order_type.upper() == "MOTOROLA MSB"):
+                        signal.byte_order = '0'
                     else:
                         signal.byte_order = '0'
+                        raise ValueError("Unknown signal byte order type: \"%s\""%byte_order_type) # todo: intel
+                        
                     if (row_values[template.sig_value_type_col].upper() == "UNSIGNED"):
                         signal.value_type = '+'
                     else:
                         signal.value_type = '-'
+                        
                     signal.factor = row_values[template.sig_factor_col]
                     signal.offset = row_values[template.sig_offset_col]
                     signal.min = row_values[template.sig_min_phys_col]
@@ -593,7 +602,10 @@ class CanNetwork(object):
                         else:
                             pass
                     if len(signal.receivers) == 0:
-                        signal.receivers.append('Vector__XXX')
+                        if len(message.receivers) > 0:
+                            signal.receivers = message.receivers
+                        else:
+                            signal.receivers.append('Vector__XXX')
                     signals.append(signal)
         self.sort();
 
@@ -613,6 +625,7 @@ class CanMessage(object):
         self.sender = sender
         self.signals = []
         self.attrs = {}
+        self.receivers = []
 
     def __str__(self):
         para = []
