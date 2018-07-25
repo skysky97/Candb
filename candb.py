@@ -17,7 +17,7 @@ sys.setdefaultencoding('utf-8')
 debug_enable = False
 
 # symbol definition of DBC format file
-new_symbols = [
+NEW_SYMBOLS = [
     'NS_DESC_', 'CM_', 'BA_DEF_', 'BA_', 'VAL_', 'CAT_DEF_', 'CAT_',
     'FILTER', 'BA_DEF_DEF_', 'EV_DATA_', 'ENVVAR_DATA_', 'SGTYPE_',
     'SGTYPE_VAL_', 'BA_DEF_SGTYPE_', 'BA_SGTYPE_', 'SIG_TYPE_REF_',
@@ -28,44 +28,43 @@ new_symbols = [
 
 
 # pre-defined attribution definitions
-#  object type    name                      value type          min     max     default   value range
-attr_defs_init = [
-    ["Message", "DiagRequest", "Enumeration", "", "", "No", ["No", "Yes"]],
-    ["Message", "DiagResponse", "Enumeration", "", "", "No", ["No", "Yes"]],
-    ["Message", "DiagState", "Enumeration", "", "", "No", ["No", "Yes"]],
-    ["Message", "GenMsgCycleTime", "Integer", 0, 0, 0, []],
-    ["Message", "GenMsgCycleTimeActive", "Integer", 0, 0, 0, []],
-    ["Message", "GenMsgCycleTimeFast", "Integer", 0, 0, 0, []],
-    ["Message", "GenMsgDelayTime", "Integer", 0, 0, 0, []],
-    ["Message", "GenMsgILSupport", "Enumeration", "", "", "No", ["No", "Yes"]],
-    ["Message", "GenMsgNrOfRepetition", "Integer", 0, 0, 0, []],
-    ["Message", "GenMsgSendType", "Enumeration", "", "", "cycle", ["cycle", "NoSendType", "IfActive"]],
-    ["Message", "GenMsgStartDelayTime", "Integer", 0, 65535, 0, []],
-    ["Message", "NmMessage", "Enumeration", "", "", "No", ["No", "Yes"]],
-    ["Network", "BusType", "String", "", "", "CAN", []],
-    ["Network", "Manufacturer", "String", "", "", "", []],
-    ["Network", "NmBaseAddress", "Hex", 0x0, 0x7FF, 0x400, []],
-    ["Network", "NmMessageCount", "Integer", 0, 255, 128, []],
-    ["Network", "NmType", "String", "", "", "", []],
-    ["Network", "DBName", "String", "", "", "", []],
-    ["Node", "DiagStationAddress", "Hex", 0x0, 0xFF, 0x0, []],
-    ["Node", "ILUsed", "Enumeration", "", "", "No", ["No", "Yes"]],
-    ["Node", "NmCAN", "Integer", 0, 2, 0, []],
-    ["Node", "NmNode", "Enumeration", "", "", "Not", ["Not", "Yes"]],
-    ["Node", "NmStationAddress", "Hex", 0x0, 0xFF, 0x0, []],
-    ["Node", "NodeLayerModules", "String", "", "", "CANoeILNVector.dll", []],
-    ["Signal", "GenSigInactiveValue", "Integer", 0, 0, 0, []],
-    ["Signal", "GenSigSendType", "Enumeration", "", "", "cycle",
-    ["cycle", "OnChange", "OnWrite", "IfActive", "OnChangeWithRepetition", "OnWriteWithRepetition",  "IfActiveWithRepetition"]],
-    ["Signal", "GenSigStartValue", "Integer", 0, 0, 0, []],
-    ["Signal", "GenSigTimeoutValue", "Integer", 0, 1000000000, 0, []],
+#  object type    name                   value type     min  max         default               value range
+ATTR_DEFS_INIT = [
+    ["Message", "DiagRequest",           "Enumeration", "",  "",         "No",                 ["No",    "Yes"]],
+    ["Message", "DiagResponse",          "Enumeration", "",  "",         "No",                 ["No",    "Yes"]],
+    ["Message", "DiagState",             "Enumeration", "",  "",         "No",                 ["No",    "Yes"]],
+    ["Message", "GenMsgCycleTime",       "Integer",     0,   0,          0,                    []],
+    ["Message", "GenMsgCycleTimeActive", "Integer",     0,   0,          0,                    []],
+    ["Message", "GenMsgCycleTimeFast",   "Integer",     0,   0,          0,                    []],
+    ["Message", "GenMsgDelayTime",       "Integer",     0,   0,          0,                    []],
+    ["Message", "GenMsgILSupport",       "Enumeration", "",  "",         "No",                 ["No",    "Yes"]],
+    ["Message", "GenMsgNrOfRepetition",  "Integer",     0,   0,          0,                    []],
+    ["Message", "GenMsgSendType",        "Enumeration", "",  "",         "cycle",              ["cycle", "NoSendType", "IfActive"]],
+    ["Message", "GenMsgStartDelayTime",  "Integer",     0,   65535,      0,                    []],
+    ["Message", "NmMessage",             "Enumeration", "",  "",         "No",                 ["No",    "Yes"]],
+    ["Network", "BusType",               "String",      "",  "",         "CAN",                []],
+    ["Network", "Manufacturer",          "String",      "",  "",         "",                   []],
+    ["Network", "NmBaseAddress",         "Hex",         0x0, 0x7FF,      0x400,                []],
+    ["Network", "NmMessageCount",        "Integer",     0,   255,        128,                  []],
+    ["Network", "NmType",                "String",      "",  "",         "",                   []],
+    ["Network", "DBName",                "String",      "",  "",         "",                   []],
+    ["Node",    "DiagStationAddress",    "Hex",         0x0, 0xFF,       0x0,                  []],
+    ["Node",    "ILUsed",                "Enumeration", "",  "",         "No",                 ["No",    "Yes"]],
+    ["Node",    "NmCAN",                 "Integer",     0,   2,          0,                    []],
+    ["Node",    "NmNode",                "Enumeration", "",  "",         "Not",                ["Not",   "Yes"]],
+    ["Node",    "NmStationAddress",      "Hex",         0x0, 0xFF,       0x0,                  []],
+    ["Node",    "NodeLayerModules",      "String",      "",  "",         "CANoeILNVector.dll", []],
+    ["Signal",  "GenSigInactiveValue",   "Integer",     0,   0,          0,                    []],
+    ["Signal",  "GenSigSendType",        "Enumeration", "",  "",         "cycle",              ["cycle", "OnChange",   "OnWrite",    "IfActive", "OnChangeWithRepetition", "OnWriteWithRepetition", "IfActiveWithRepetition"]],
+    ["Signal",  "GenSigStartValue",      "Integer",     0,   0,          0,                    []],
+    ["Signal",  "GenSigTimeoutValue",    "Integer",     0,   1000000000, 0,                    []],
 ]
 
 # matrix template dict
 # Matrix parser use this dict to parse can network information from excel. The
 # 'key's are used in this module and the 'ValueTable' are used to match excel
 # column header. 'ValueTable' may include multi string.
-matrix_template_map = {
+MATRIX_TEMPLATE_MAP = {
     "msg_name_col":         ["MsgName"],
     "msg_type_col":         ["MsgType"],
     "msg_id_col":           ["MsgID"],
@@ -88,9 +87,7 @@ matrix_template_map = {
 }
 
 # excel workbook sheets with name in this list are ignored
-matrix_sheet_ignore = ["Cover", "History", "Legend", "ECU Version", ]
-
-matrix_nodes = ["IPC","ICM"]
+MATRIX_SHEET_IGNORE = ["Cover", "History", "Legend", "ECU Version", ]
 
 NODE_NAME_MAX = 8
 
@@ -181,7 +178,7 @@ def parse_sheetname(workbook):
     for sheetname in workbook.sheet_names():
         if sheetname == "Matrix":
             return sheetname
-        if sheetname not in matrix_sheet_ignore:
+        if sheetname not in MATRIX_SHEET_IGNORE:
             sheets.append(sheetname)
     if len(sheets)==1:
         return sheets[0]
@@ -218,8 +215,8 @@ def parse_template(sheet):
         value = sheet.row_values(header_row_num)[col_num]
         if value is not None:
             value = value.replace(" ","")
-            for col_name in matrix_template_map.keys():
-                for col_header in matrix_template_map[col_name]:
+            for col_name in MATRIX_TEMPLATE_MAP.keys():
+                for col_header in MATRIX_TEMPLATE_MAP[col_name]:
                     if col_header in value and getattr(template,col_name)==0:
                         setattr(template, col_name, col_num)
                         break
@@ -250,7 +247,7 @@ def parse_sig_vals(val_str):
                 for i in range(0, len(token), 2):
                     try:
                         val = getint(token[i])
-                        desc = token[i + 1]  # .replace('.', ' ').replace('\"',' ')
+                        desc = token[i + 1].replace('\"','').strip()
                         vals[desc] = val
                     except ValueError:
                         # print "waring: ignored signal value definition: " ,token[i], token[i+1]
@@ -288,21 +285,38 @@ def getint(str, default=None):
             except:
                 raise
 
+def motorola_msb_2_motorola_backward(start_bit, sig_size, frame_size):
+    msb_bytes            = start_bit//8
+    msb_byte_bit         = start_bit%8
+    byte_remain_bits     = msb_byte_bit + 1
+    remain_bits          = sig_size
+    backward_start_bit   = (frame_size *8 -1) - (8 * msb_bytes) - (7 - msb_byte_bit) 
+    while remain_bits > 0:
+        if remain_bits > byte_remain_bits:
+            remain_bits         -= byte_remain_bits
+            backward_start_bit  -= byte_remain_bits
+            byte_remain_bits    = 8
+        else:
+            backward_start_bit = backward_start_bit - remain_bits + 1 
+            remain_bits = 0
+    return backward_start_bit
 
 class CanNetwork(object):
-    def __init__(self):
+    def __init__(self, init=True):
         self.nodes = []
         self.messages = []
         self.name = 'CAN'
         self.val_tables = []
         self.version = ''
-        self.new_symbols = new_symbols
+        self.new_symbols = NEW_SYMBOLS
         self.attr_defs = []
-        self._init_attr_defs()
         self._filename = ''
+        
+        if init:
+            self._init_attr_defs()
 
     def _init_attr_defs(self):
-        for attr_def in attr_defs_init:
+        for attr_def in ATTR_DEFS_INIT:
             self.attr_defs.append(CanAttribution(attr_def[1], attr_def[0], attr_def[2], attr_def[3], attr_def[4],
                                                  attr_def[5], attr_def[6]))
 
@@ -435,28 +449,122 @@ class CanNetwork(object):
                     lines.append(' '.join(line) + '\n')
         return ''.join(lines)
 
-    def sort(self):
+    def add_attr_def(self, name, object_type, value_type, minvalue, maxvalue, default, values=None):
+        index = None
+        for i in range (0, len(self.attr_defs)):
+            if self.attr_defs[i].name == name:
+                index = i
+                break
+        if index is None:
+            attr_def = CanAttribution(name, object_type, value_type, minvalue, maxvalue, default, values) 
+            self.attr_defs.append(attr_def)
+        else:
+            print("info: override default attribution definition \'{}\'".format(name))
+            self.attr_defs[index].object_type = object_type
+            self.attr_defs[index].value_type  = value_type
+            self.attr_defs[index].min = minvalue
+            self.attr_defs[index].max = maxvalue
+            self.attr_defs[index].default = default
+            self.attr_defs[index].values = values
+            #print(self.attr_defs[index])
+
+    def get_attr_def(self, name):
+        ret = None
+        for attr_def in self.attr_defs:
+            if attr_def.name == name:
+                ret = attr_def
+        return ret
+
+    def set_msg_attr(self, msg_id, attr_name, value):
+        for msg in self.messages:
+            if msg.msg_id == msg_id:
+                msg.set_attr(attr_name, value)
+
+    def get_msg_attr(self, msg_id, attr_name):
+        value = None
+        for msg in self.messages:
+            if msg.msg_id == msg_id:
+                if msg.attrs.has_key(attr_name):
+                    value = msg.attrs[attr_name]
+                else:
+                    attr_def = self.get_attr_def(attr_name)
+                    if attr_def is not None:
+                        value = attr_def.default
+        return value
+
+    def set_sig_attr(self, msg_id, sig_name, attr_name, attr_value):
+        for msg in self.messages:
+            if msg.msg_id == msg_id:
+                for sig in msg.signals:
+                    if sig.name == sig_name:
+                        sig.set_attr(attr_name, attr_value)
+
+
+    def convert_attr_def_value(self, attr_def_name, value_str):
+        '''
+        Convert string to a value with AttributionDefinition's data type.
+
+        Except:
+            ValueError: attribuiton definition is not exit, or value type
+                        of AttrDef is not support yet.
+        '''
+        attr_def_value_type = None
+        for attr_def in self.attr_defs:
+            if attr_def.name == attr_def_name:
+                attr_def_value_type = attr_def.value_type
+                attr_def_values     = attr_def.values
+                break
+        if attr_def_value_type == 'Integer':
+            value  = int(value_str)
+        elif attr_def_value_type == 'Float':
+            value  = float(value_str)
+        elif attr_def_value_type == 'String':
+            value  = value_str 
+        elif attr_def_value_type == 'Enumeration':
+            if value_str.isdigit():
+                value  = attr_def_values[int(value_str)]
+            else:
+                value = value_str[1:-1]
+        elif attr_def_value_type == 'Hex':
+            value  = int(value_str)
+        elif attr_def_value_type is None:
+            raise ValueError("Undefined attribution definition: {}".format(attr_def_name))
+        else:
+            raise ValueError("Unkown attribution definition value type: {}".format(attr_def_value_type))
+        return value
+
+    def sort(self, option='id'):
         messages = self.messages
-        # sort by msg_id, id is treated as string, NOT numbers, to keep the same with candb++
-        messages.sort(key=lambda msg: str(msg.msg_id))
-        for msg in messages:
-            signals = msg.signals
-            signals.sort(key=lambda sig: sig.start_bit)
+        if option == 'id':
+            # sort by msg_id, id is treated as string, NOT numbers, to keep the same with candb++
+            messages.sort(key=lambda msg: str(msg.msg_id))
+            for msg in messages:
+                signals = msg.signals
+                signals.sort(key=lambda sig: sig.start_bit)
+        elif option == 'name':
+            messages.sort(key=lambda msg: msg.name)
+        else:
+            raise ValueError("Invalid sort option \'{}\'".format(option))
 
     def load(self, path):
         dbc = open(path, 'r')
 
         for line in dbc:
             line_trimmed = line.strip()
-            line_split = re.split('[\s\(\)\[\]\|\,\:\@]+', line_trimmed)
-            if len(line_split) > 0:
-                if line_split[0] == 'BO_':
+            line_split = re.split('[\s\(\)\[\]\|\,\:\@\;]+', line_trimmed)
+            if len(line_split) >= 2:
+                # Node
+                if line_split[0] == 'BU_':
+                    self.nodes.extend(line_split[1:])
+                # Message
+                elif line_split[0] == 'BO_':
                     msg = CanMessage()
                     msg.msg_id = int(line_split[1])
                     msg.name   = line_split[2]
                     msg.dlc    = int(line_split[3])
                     msg.sender = line_split[4]
                     self.messages.append(msg)
+                # Signal
                 elif line_split[0] == 'SG_':
                     sig = CanSignal()
                     sig.name        = line_split[1]
@@ -471,7 +579,92 @@ class CanNetwork(object):
                     sig.unit        = line_split[9][1:-1]  # remove quotation makes
                     sig.receivers   = line_split[10:]  # receiver is a list
                     msg.signals.append(sig)
+                # Attribution Definition
+                elif line_split[0] == 'BA_DEF_':
+                    attr_def_object             = line_split[1]
+                    if attr_def_object == 'BO_':
+                        attr_def_object_type    = 'Message'
+                        attr_def_name_offset    = 2
+                    elif attr_def_object == 'SG_':
+                        attr_def_object_type    = 'Signal'
+                        attr_def_name_offset    = 2
+                    else: # Network
+                        attr_def_object_type    = 'Network'
+                        attr_def_name_offset    = 1
 
+                    attr_def_name               = line_split[attr_def_name_offset][1:-1] # remove quotation makes
+                    attr_def_value_type         = line_split[attr_def_name_offset + 1]
+                    attr_def_default            = ''
+
+                    if attr_def_value_type == 'ENUM':
+                        attr_def_value_type_str = 'Enumeration'
+                        attr_def_value_min      = ''
+                        attr_def_value_max      = ''
+                        attr_def_values         = map(lambda val:val[1:-1], line_split[attr_def_name_offset + 2:]) #remove "
+                    elif attr_def_value_type == 'FLOAT':
+                        attr_def_value_type_str = 'Float'
+                        attr_def_value_min      = float(line_split[attr_def_name_offset + 2])
+                        attr_def_value_max      = float(line_split[attr_def_name_offset + 3])
+                        attr_def_values         = []
+                    elif attr_def_value_type == 'INT':
+                        attr_def_value_type_str = 'Integer'
+                        attr_def_value_min      = int(float(line_split[attr_def_name_offset + 2]))
+                        attr_def_value_max      = int(float(line_split[attr_def_name_offset + 3]))
+                        attr_def_values         = []
+                    elif attr_def_value_type == 'HEX':
+                        attr_def_value_type_str = 'Hex'
+                        attr_def_value_min      = int(line_split[attr_def_name_offset + 2])
+                        attr_def_value_max      = int(line_split[attr_def_name_offset + 3])
+                        attr_def_values         = []
+                    elif attr_def_value_type == 'STRING':
+                        attr_def_value_type_str = 'String'
+                        attr_def_value_min      = '' 
+                        attr_def_value_max      = ''
+                        attr_def_values         = []
+                    else:
+                        raise ValueError("Unkown attribution definition value type: {}".format(attr_def_value_type))
+
+                    self.add_attr_def(attr_def_name, attr_def_object_type, attr_def_value_type_str, \
+                                      attr_def_value_min, attr_def_value_max, attr_def_default, attr_def_values)
+                # Attribution Definition Default Value
+                elif line_split[0] == 'BA_DEF_DEF_':
+                    attr_def_name               = line_split[1][1:-1] #remove "
+                    attr_def_value_type_str     = None
+                    attr_def_default            = self.convert_attr_def_value(attr_def_name, line_split[2])
+                    attr_def                    = self.get_attr_def(attr_def_name)
+                    if attr_def is not None:
+                        attr_def.default        = attr_def_default
+                # Object Attribution definition
+                elif line_split[0] == 'BA_':
+                    attr_name           = line_split[1][1:-1] # remove "
+                    attr_object         = line_split[2]
+                    if attr_object == 'BO_':
+                        attr_msg_id     = int(line_split[3])
+                        attr_value      = self.convert_attr_def_value(attr_name, line_split[4])
+                        if attr_value is not None:
+                            self.set_msg_attr(attr_msg_id, attr_name, attr_value)
+                        else:
+                            raise ValueError("Msg \'{}\' attribuition \'{}\' value is {}".format(attr_msg_id, attr_name, line_split[4])) 
+                    elif attr_object == 'SG_':
+                        pass
+                # Value Tables
+                elif line_split[0] == 'VAL_': 
+                    quote_split  = re.split('\s*\"\s*', line_trimmed)
+                    line_split   = re.split('\s+', quote_split[0])
+                    line_split.extend(quote_split[1:-1])
+                    val_msg_id   = int(line_split[1])
+                    val_sig_name = line_split[2]
+                    values = {}
+                    for i in range(3, len(line_split)-1, 2):
+						try:
+							values[line_split[i+1]] = int(line_split[i])
+						except:
+							print(line_split)
+							raise
+                    self.set_sig_attr(val_msg_id, val_sig_name, 'values', values)
+
+        dbc.close()
+                        
     def save(self, path=None):
         if (path == None):
             file = open(self._filename + ".dbc", "w")
@@ -660,23 +853,44 @@ class CanSignal(object):
         line = ["SG_", self.name, ":",
                 str(self.start_bit) + "|" + str(self.sig_len) + "@" + self.byte_order + self.value_type,
                 "(" + str(self.factor) + "," + str(self.offset) + ")", "[" + str(self.min) + "|" + str(self.max) + "]",
-                "\"" + self.unit + "\"", ','.join(self.receivers)]
+                "\"" + str(self.unit) + "\"", ','.join(self.receivers)]
         return " ".join(line)
+
+    def set_attr(self, name, value):
+        if name == 'values':
+            self.values = value
+        else:
+            raise ValueError("Unsupport set attr of \'{}\'".format(name))
+
+    def get_attr(self, name):
+        if name == 'values':
+            return self.values
+        else:
+            raise ValueError("Unsupport set attr of \'{}\'".format(name))
 
 
 class CanAttribution(object):
-    def __init__(self, name, object_type, value_type, min, max, default, values=None):
+    def __init__(self, name, object_type, value_type, minvalue, maxvalue, default, values=None):
         self.name = name
         self.object_type = object_type
         self.value_type = value_type
-        self.min = min
-        self.max = max
+        self.min = minvalue
+        self.max = maxvalue
         self.default = default
         self.values = values
 
     def __str__(self):
-        pass
-
+        line = ["name: {}".format(self.name)]
+        line.append("object type: {}".format(self.object_type))
+        line.append("value type: {}".format(self.value_type))
+        line.append("minimum:   {}".format(self.min))
+        line.append("maximum:   {}".format(self.max))
+        line.append("default:   {}".format(self.default))
+        line.append("values:")
+        if self.value_type == "Enumeration" and self.values is not None:
+            for i in range(0, len(self.values)):
+                line.append("       {:d}:   {}".format(i, self.values[i]))
+        return '\n'.join(line)
 
 def parse_args():
     """
